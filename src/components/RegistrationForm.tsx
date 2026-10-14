@@ -1,6 +1,7 @@
 import React from 'react';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set } from 'firebase/database';
+import { track } from '../lib/analytics';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBOA-yFtuYmdVjAa9xoj7UeqBfUsQ5iSss",
@@ -17,6 +18,21 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default function RegistrationForm() {
+  const formRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = formRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        track('registration_form_viewed');
+        observer.disconnect();
+      }
+    }, { threshold: 0.3 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -35,15 +51,17 @@ export default function RegistrationForm() {
     
     try {
       await set(reference, formData);
+      track('registration_submitted', { class_applied: formData.class, has_email: !!formData.email, success: true });
       alert('Registration submitted successfully!');
     } catch (error) {
       console.error("Error:", error);
+      track('registration_submitted', { class_applied: formData.class, has_email: !!formData.email, success: false });
       alert('Failed to submit registration.');
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div ref={formRef} className="bg-white rounded-lg shadow-lg p-6">
       <h3 className="text-2xl font-semibold mb-6">Register Now</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
